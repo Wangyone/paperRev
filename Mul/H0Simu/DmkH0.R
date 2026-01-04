@@ -104,67 +104,67 @@ for (m_val in m_list) {
                                    .export = c("m_val", "L_val", "mod", "lag", "alphaE", "gamma", 
                                                "kernal", "KT", "log_T_limit", "N_total")) %dopar% {
                                                    
-                                                   # 1. 生成数据
-                                                   yt <- gendataPaper(monitoringPeriod = L_val, trainSize = m_val, model = mod)
-                                                   if (!is.matrix(yt)) yt <- as.matrix(yt)
-                                                   d <- ncol(yt) # 获取维度 d
-                                                   
-                                                   # 2. Block Size 选择 (自动最优带宽)
-                                                   Block_sizes <- numeric(d)
-                                                   for(dim_i in 1:d) {
-                                                       ut <- yt[1:m_val, dim_i]
-                                                       acf_res <- acf(ut, lag.max = 2*KT, plot = FALSE)$acf
-                                                       R <- as.vector(acf_res)
-                                                       tmp <- which(abs(R[1:KT]) < log_T_limit)
-                                                       M <- if (length(tmp) > 0) 2 * (tmp[1] - 1) else 2 * (KT - 1)
-                                                       
-                                                       idx <- -M:M
-                                                       w <- lambda_compiled(idx / M)
-                                                       
-                                                       ghat <- sum(w * R[abs(idx) + 1])
-                                                       Ghat <- sum(w * R[abs(idx) + 1] * abs(idx))
-                                                       D.SB <- 2 * ghat^2
-                                                       Block_sizes[dim_i] <- if(D.SB < 1e-10) 1 else max(1, round((2 * Ghat^2 / D.SB)^(1/3) * m_val^(1/3)))
-                                                   }
-                                                   blocksize <- max(1, round(mean(Block_sizes)))
-                                                   
-                                                   # 3. Stationary Bootstrap 生成 y.star
-                                                   expected_blocks <- ceiling((N_total + m_val) / blocksize) + 5
-                                                   len_vec <- rgeom(expected_blocks, 1/blocksize) + 1
-                                                   while(sum(len_vec) < N_total) len_vec <- c(len_vec, rgeom(10, 1/blocksize) + 1)
-                                                   len_vec <- len_vec[1:which(cumsum(len_vec) >= N_total)[1]]
-                                                   
-                                                   num_blocks <- length(len_vec)
-                                                   start_vec <- sample.int(m_val, num_blocks, replace = TRUE)
-                                                   
-                                                   idx_vec <- integer(N_total)
-                                                   curr_pos <- 1
-                                                   for(j in 1:num_blocks){
-                                                       blk_len <- len_vec[j]
-                                                       end_pos <- curr_pos + blk_len - 1
-                                                       if(end_pos > N_total) blk_len <- N_total - curr_pos + 1
-                                                       indices <- (start_vec[j] + 0:(blk_len-1) - 1) %% m_val + 1
-                                                       idx_vec[curr_pos:(curr_pos+blk_len-1)] <- indices
-                                                       curr_pos <- curr_pos + blk_len
-                                                       if(curr_pos > N_total) break
-                                                   }
-                                                   y.star <- yt[idx_vec, , drop = FALSE]
-                                                   
-                                                   # 4. 权重向量
-                                                   Tm_local <- m_val - lag
-                                                   k_vec_local <- 1:(N_total - m_val)
-                                                   vaha_local <- (Tm_local + k_vec_local)^2 / (Tm_local * Qk_compiled(k_vec_local/Tm_local, gamma)^2)
-                                                   
-                                                   # 5. 计算统计量 [关键修改处]
-                                                   # 将 delta0 参数设置为 1.0 * d
-                                                   delta_param <- 1.0 * d 
-                                                   
-                                                   Tn <- max(statL_compiled(yt, m_val, m = lag, alphaE, vaha_local, kernal, delta_param))
-                                                   Tn_star <- max(statL_compiled(y.star, m_val, m = lag, alphaE, vaha_local, kernal, delta_param))
-                                                   
-                                                   c(Tn, Tn_star)
-                                               }
-            
+           # 1. 生成数据
+           yt <- gendataPaper(monitoringPeriod = L_val, trainSize = m_val, model = mod)
+           if (!is.matrix(yt)) yt <- as.matrix(yt)
+           d <- ncol(yt) # 获取维度 d
+           
+           # 2. Block Size 选择 (自动最优带宽)
+           Block_sizes <- numeric(d)
+           for(dim_i in 1:d) {
+               ut <- yt[1:m_val, dim_i]
+               acf_res <- acf(ut, lag.max = 2*KT, plot = FALSE)$acf
+               R <- as.vector(acf_res)
+               tmp <- which(abs(R[1:KT]) < log_T_limit)
+               M <- if (length(tmp) > 0) 2 * (tmp[1] - 1) else 2 * (KT - 1)
+               
+               idx <- -M:M
+               w <- lambda_compiled(idx / M)
+               
+               ghat <- sum(w * R[abs(idx) + 1])
+               Ghat <- sum(w * R[abs(idx) + 1] * abs(idx))
+               D.SB <- 2 * ghat^2
+               Block_sizes[dim_i] <- if(D.SB < 1e-10) 1 else max(1, round((2 * Ghat^2 / D.SB)^(1/3) * m_val^(1/3)))
+           }
+           blocksize <- max(1, round(mean(Block_sizes)))
+           
+           # 3. Stationary Bootstrap 生成 y.star
+           expected_blocks <- ceiling((N_total + m_val) / blocksize) + 5
+           len_vec <- rgeom(expected_blocks, 1/blocksize) + 1
+           while(sum(len_vec) < N_total) len_vec <- c(len_vec, rgeom(10, 1/blocksize) + 1)
+           len_vec <- len_vec[1:which(cumsum(len_vec) >= N_total)[1]]
+           
+           num_blocks <- length(len_vec)
+           start_vec <- sample.int(m_val, num_blocks, replace = TRUE)
+           
+           idx_vec <- integer(N_total)
+           curr_pos <- 1
+           for(j in 1:num_blocks){
+               blk_len <- len_vec[j]
+               end_pos <- curr_pos + blk_len - 1
+               if(end_pos > N_total) blk_len <- N_total - curr_pos + 1
+               indices <- (start_vec[j] + 0:(blk_len-1) - 1) %% m_val + 1
+               idx_vec[curr_pos:(curr_pos+blk_len-1)] <- indices
+               curr_pos <- curr_pos + blk_len
+               if(curr_pos > N_total) break
+           }
+           y.star <- yt[idx_vec, , drop = FALSE]
+           
+           # 4. 权重向量
+           Tm_local <- m_val - lag
+           k_vec_local <- 1:(N_total - m_val)
+           vaha_local <- (Tm_local + k_vec_local)^2 / (Tm_local * Qk_compiled(k_vec_local/Tm_local, gamma)^2)
+           
+           # 5. 计算统计量
+           # 将 delta0 参数设置为 1.0 * d
+           delta_param <- 1.0 * d 
+           
+           Tn <- max(statL_compiled(yt, m_val, m = lag, alphaE, vaha_local, kernal, delta_param))
+           Tn_star <- max(statL_compiled(y.star, m_val, m = lag, alphaE, vaha_local, kernal, delta_param))
+           
+           c(Tn, Tn_star)
+       }
+
             # 聚合结果
             Tn_vec <- sim_results[, 1]
             Tn_star_vec <- sim_results[, 2]
