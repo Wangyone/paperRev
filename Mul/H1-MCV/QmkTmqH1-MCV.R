@@ -22,13 +22,13 @@ source("Gendata4PaperNew.R")
 trainSize     <- 100      
 L_val         <- 1        
 model_list    <- 101:104  # 目标模型列表 (M1-M4)
-deltas        <- seq(0, 2, by = 0.2) 
+deltas        <- seq(0, 2, by = 0.1) 
 
 # NPCP 参数
 gamma         <- 0        
 alpha         <- 0.05    
-nsim          <- 400      # 模拟次数 (建议 400-1000)
-B             <- 200      # Bootstrap 次数
+nsim          <- 1000      # 模拟次数 (建议 400-1000)
+B             <- 500      # Bootstrap 次数
 b_fixed       <- ceiling(trainSize^(1/3)) 
 
 # 【关键】：变点时刻设置
@@ -160,7 +160,11 @@ cat("\n========================================\n")
 cat("Simulation Finished.\n")
 print(head(final_results))
 
-write.csv(final_results, "Power_MDD_Results_NPCP.csv", row.names = FALSE)
+
+fileSaveName <- paste0("Power_MDD_Results_NPCP(", head(model_list, 1), "-", tail(model_list, 1), ")")
+write.csv(final_results, file = paste0(fileSaveName, ".csv"), row.names = FALSE)
+
+
 
 # 简单绘图
 if(nrow(final_results) > 0) {
@@ -175,6 +179,7 @@ if(nrow(final_results) > 0) {
         theme_minimal()
     
     print(p1)
-    ggsave("NPCP_Power.png", p1, width=7, height=5)
-    ggsave("NPCP_MDD.png", p2, width=7, height=5)
+    print(p2)
+    # ggsave("NPCP_Power.png", p1, width=7, height=5)
+    # ggsave("NPCP_MDD.png", p2, width=7, height=5)
 }
